@@ -113,3 +113,132 @@ bcrypt.compare(req.body.password, password_from_db, function (err, result) {
   // result == true || false
 });
 ```
+
+## level 5 ( Cookies & Session )
+
+> Cookies are used to store information about the user's activity on the website, and this information is then sent back to the website or server each time the user returns. what is use of cookies...
+
+### 1. Session Management
+
+Cookies can be used to manage user sessions on a website. We can store session IDs or tokens inside cookie, that allow the server to identify and authenticate users.
+
+### 2. Personalization:
+
+Cookies can remember user preferences and settings, such as language preferences or layout preferences, to provide a personalized browsing experience.
+
+### 3. Authentication:
+
+Cookies can be used for user authentication, allowing users to stay logged in between visits to a website without having to re-enter their credentials each time.
+
+### 4. Shopping Carts:
+
+E-commerce websites use cookies to store the contents of a user's shopping cart, making it possible for users to add items to their cart and continue shopping across different pages or sessions.
+
+### 5. Ad Targeting:
+
+Third-party cookies, often used by advertisers, track users' online behavior across multiple websites to deliver targeted ads based on their interests and browsing history.
+
+### Cookies can be categorized into two main types:
+
+> ### Session Cookies:
+>
+> These cookies are temporary and are deleted from the user's device when they close their web browser. They are typically used for session management and are not stored on the user's device long-term.
+>
+> ### Persistent Cookies:
+>
+> Persistent cookies are stored on the user's device for a specified duration, even after the browser is closed. They are often used for purposes like remembering user preferences or tracking long-term behavior.
+
+Packages used in project for cookies and session are
+
+1. passport [docs](https://www.passportjs.org/).
+2. express-session [docs](https://www.npmjs.com/package/express-session).
+3. passport-local-mongoose [docs](https://www.npmjs.com/package/passport-local-mongoose).
+
+> And salting & hashing will be taken care by passport-local-mongoose 🙃 .
+
+```js
+const session = require("express-session");
+const passport = require("passport");
+const passportLocalMongoose = require("passport-local-mongoose");
+
+// Mount the session middleware function
+//from express-session
+app.use(
+  session({
+    secret: "ThisIsMySecret",
+    resave: false,
+    saveUninitialized: false,
+  })
+);
+
+// Mount the passport middleware function
+// from passport docs.
+app.use(passport.initialize());
+app.use(passport.session());
+
+// db
+const userSchema = mongoose.Schema({
+  email: String,
+  password: String,
+});
+
+// mongoose plugin for passport package
+// from passport-local-mongoose
+userSchema.plugin(passportLocalMongoose);
+
+// configuration
+// from passport-local-mongoose
+passport.use(User.createStrategy());
+
+passport.serializeUser(User.serializeUser());
+passport.deserializeUser(User.deserializeUser());
+
+// register user store session cookie and store hashed pass in db
+app.post("/register", async function (req, res) {
+  // from passport-local-mongoose
+  User.register(
+    { username: req.body.username },
+    req.body.password,
+    function (err, user) {
+      if (err) {
+        console.log(err);
+        res.redirect("/register");
+      } else {
+        passport.authenticate("local")(req, res, function () {
+          res.redirect("/secrets");
+        });
+      }
+    }
+  );
+});
+
+// authenticate user
+app.post("/login", async function (req, res) {
+  const user = new User({
+    username: req.body.username,
+    password: req.body.password,
+  });
+  // from passport docs
+  req.login(user, function (err) {
+    if (err) {
+      console.log(err);
+      res.redirect("/login");
+    } else {
+      passport.authenticate("local")(req, res, function () {
+        res.redirect("/secrets");
+      });
+    }
+  });
+});
+
+// logout and terminate seesion
+app.get("/logout", function (req, res) {
+  // from passport docs
+  req.logout(function (err) {
+    if (err) {
+      return next(err);
+    }
+    res.redirect("/");
+  });
+});
+```
